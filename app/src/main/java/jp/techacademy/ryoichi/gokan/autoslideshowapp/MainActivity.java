@@ -5,7 +5,6 @@ import android.content.ContentUris;
 import android.content.pm.PackageManager;
 import android.content.ContentResolver;
 import android.database.Cursor;
-import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -17,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -26,9 +26,6 @@ public class MainActivity extends AppCompatActivity {
 
     Timer mTimer;
     ImageView mImageView;
-
-    // 画像データ取得用のCursor
-    Cursor myCursor;
 
     // タイマー用の時間のための変数
     double mTimerSec = 0.0;
@@ -40,10 +37,8 @@ public class MainActivity extends AppCompatActivity {
     Boolean permissionFlag;
     Boolean timerFlag = false;
 
-    // 使わないかも・・・
-//    String images[] = {"Dog", "Cat", "Sloth"};
-//    int i = 0; // 画像表示のためのカウンタ
-
+    ArrayList<Uri> imageList = new ArrayList<Uri>();
+    int i = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
             if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 // 許可されている flag on/offに切り替える
                 permissionFlag = true;
-                myCursor = getContentsInfo();
+                imageList = getContentsInfo();
             } else {
                 // 許可されてないので許可ダイヤログを表示する
                 permissionFlag = false;
@@ -70,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
             // Android 5系以下の場合
         } else {
             permissionFlag = true;
-            myCursor = getContentsInfo();
+            imageList = getContentsInfo();
         }
 
         mNextButton.setOnClickListener(new View.OnClickListener(){
@@ -81,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                 if (permissionFlag == true) {
                     Log.d("SlideShow", "NextButton was executed.");
 
-                    setNextImage(myCursor);
+                    i = setNextImage(imageList, i);
                 }
 
             }
@@ -95,9 +90,8 @@ public class MainActivity extends AppCompatActivity {
                 if (permissionFlag == true) {
                     Log.d("SlideShow", "PrevButton was executed.");
 
-                    setPreviousImage(myCursor);
+                    i = setPreviousImage(imageList, i);
                 }
-
             }
         });
 
@@ -123,9 +117,8 @@ public class MainActivity extends AppCompatActivity {
                                 mHandler.post(new Runnable() {
                                     @Override
                                     public void run() {
-//                                        mTimerText.setText(String.format("%.1f", mTimerSec));
                                         Log.d("SlideShow", "Timer is running.");
-                                        setNextImage(myCursor);
+                                        i = setNextImage(imageList, i);
                                     }
                                 });
                             }
@@ -149,7 +142,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // 共通処理として１回呼ばれる
-    private Cursor getContentsInfo() {
+    private ArrayList<Uri> getContentsInfo() {
+
+        ArrayList<Uri> myImageList = new ArrayList<Uri>();
+        int i = 0;
 
         // 画像の情報を取得する
         ContentResolver resolver = getContentResolver();
@@ -164,44 +160,53 @@ public class MainActivity extends AppCompatActivity {
         // 先頭の画像を表示する
         cursor.moveToFirst();
         setImageView(cursor);
-        // ここでクローズしてよいのか？
-//        cursor.close();
-        return cursor;
+
+        int fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
+
+        do {
+            //カラムIDの取得
+            fieldIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID);
+            Long id = cursor.getLong(fieldIndex);
+
+            //IDからURIを取得
+            Uri bmpUri = ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+            imageList.add(bmpUri);
+            myImageList.add(bmpUri);
+            Log.d("SlideShow", myImageList.get(i).toString());
+            i++;
+        } while (cursor.moveToNext());
+
+        cursor.close();
+        return imageList;
     }
 
     // 次の画像を表示する処理
-    private void setNextImage(Cursor cursor) {
+    private int setNextImage(ArrayList<Uri> imageList, int i) {
 
-        if (cursor.moveToNext()) {
-            Log.d("SlideShow", "moveToNext");
-            setImageView(cursor);
-        } else if (cursor.moveToFirst()){
-            Log.d("SlideShow", "moveToFirst");
-//            cursor.moveToFirst();
-//            setImageView(cursor);
+        i++;
+        if (i == imageList.size()) {
+            i = 0;
         }
 
-        // cursorは使用した後はcloseを必ず行う
-//        cursor.close();
+        Uri imageUri = imageList.get(i);
+        mImageView.setImageURI(imageUri);
+
+        return i;
     }
 
     // 前の画像を表示する処理
-    private void setPreviousImage(Cursor cursor) {
+    private int setPreviousImage(ArrayList<Uri> imageList, int i) {
 
-        if (cursor.moveToPrevious()) {
-            Log.d("SlideShow", "moveToPrevious");
-            setImageView(cursor);
-        } else {
-            Log.d("SlideShow", "moveTo");
-            cursor.moveToLast();
-            setImageView(cursor);
+        i--;
+        if (i < 0) {
+            i = (imageList.size() - 1);
         }
 
-        // cursorは使用した後はcloseを必ず行う
-//        cursor.close();
+        Uri imageUri = imageList.get(i);
+        mImageView.setImageURI(imageUri);
+        return i;
     }
-
-
 
     // ImageViewに画像を設定する処理
     private void setImageView(Cursor cursor) {
@@ -209,6 +214,7 @@ public class MainActivity extends AppCompatActivity {
         Long id = cursor.getLong(fieldIndex);
         Uri imageUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
         mImageView.setImageURI(imageUri);
+
     }
 
 }
