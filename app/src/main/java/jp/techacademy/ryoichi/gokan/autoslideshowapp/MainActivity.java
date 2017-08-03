@@ -105,6 +105,10 @@ public class MainActivity extends AppCompatActivity {
                     mStartPauseButton.setText("停止");
                     timerFlag = true;
 
+                    // 進むボタンと戻るボタンをタップ不可にする
+                    mNextButton.setEnabled(false);
+                    mPrevButton.setEnabled(false);
+
                     if (mTimer == null) {
                         // タイマーの作成
                         mTimer = new Timer();
@@ -129,6 +133,10 @@ public class MainActivity extends AppCompatActivity {
                     // タイマー停止処理を実施
                     mStartPauseButton.setText("再生");
                     timerFlag = false;
+
+                    // 進むボタンと戻るボタンをタップ可にする
+                    mNextButton.setEnabled(true);
+                    mPrevButton.setEnabled(true);
 
                     if (mTimer != null) {
                         mTimer.cancel();
